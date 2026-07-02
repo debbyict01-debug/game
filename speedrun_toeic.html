@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPEED RUN｜多益瘋狂拼字</title>
+<style>
+:root{
+  --bg-track:#0a0e1a;
+  --bg-panel:#121a2e;
+  --lane-line:#1e2a45;
+  --amber:#ffb020;
+  --amber-glow:#ffd166;
+  --danger:#ff4d4d;
+  --text-main:#eef1f8;
+  --text-dim:#7e8aa8;
+  --success:#3ddc97;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  background:
+    radial-gradient(ellipse at 50% -10%, #1a2440 0%, var(--bg-track) 60%);
+  color:var(--text-main);
+  font-family:'Segoe UI','Noto Sans TC',sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  overflow-x:hidden;
+}
+.stage{
+  width:100%;
+  max-width:640px;
+  position:relative;
+}
+
+/* 跑道線裝飾 */
+.lanes{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  background-image:
+    repeating-linear-gradient(180deg, transparent 0 78px, var(--lane-line) 78px 80px);
+  opacity:.35;
+  pointer-events:none;
+}
+
+.card{
+  position:relative;
+  z-index:1;
+  background:linear-gradient(180deg, var(--bg-panel) 0%, #0d1424 100%);
+  border:1px solid #24304d;
+  border-radius:18px;
+  padding:28px 26px 24px;
+  box-shadow:0 20px 60px -20px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* HEADER */
+.hud{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  margin-bottom:18px;
+}
+.hud .title{
+  font-size:13px;
+  letter-spacing:.18em;
+  color:var(--amber);
+  font-weight:700;
+  text-transform:uppercase;
+}
+.hud .sub{
+  font-size:11px;
+  color:var(--text-dim);
+  margin-top:4px;
+  letter-spacing:.05em;
+}
+.scorebox{text-align:right;}
+.scorebox .label{font-size:10px;color:var(--text-dim);letter-spacing:.1em;}
+.scorebox .value{
+  font-family:'Consolas','SFMono-Regular',monospace;
+  font-size:28px;
+  font-weight:700;
+  color:var(--amber-glow);
+  line-height:1;
+  text-shadow:0 0 18px rgba(255,176,32,.4);
+}
+
+/* 命數 + combo 條 */
+.statusrow{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:16px;
+}
+.lives{display:flex;gap:6px;}
+.life{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--danger);
+  box-shadow:0 0 8px rgba(255,77,77,.6);
+}
+.life.lost{background:#2a2f3d; box-shadow:none;}
+.combo{
+  font-family:'Consolas',monospace;
+  font-size:13px;
+  color:var(--success);
+  letter-spacing:.05em;
+  opacity:0;
+  transform:translateY(4px);
+  transition:opacity .15s, transform .15s;
+}
+.combo.show{opacity:1; transform:translateY(0);}
+
+/* 計時條（終點線風格） */
+.timerwrap{
+  height:14px;
+  border-radius:8px;
+  background:#0a0f1d;
+  border:1px solid #232c45;
+  overflow:hidden;
+  margin-bottom:22px;
+  position:relative;
+}
+.timerwrap::before{
+  content:'';
+  position:absolute; inset:0;
+  background-image:repeating-linear-gradient(90deg,#fff 0 6px, transparent 6px 12px);
+  opacity:.05;
+}
+.timerbar{
+  height:100%;
+  width:100%;
+  background:linear-gradient(90deg, var(--success), var(--amber) 70%, var(--danger) 100%);
+  transition:width .05s linear;
+  box-shadow:0 0 12px rgba(255,176,32,.5);
+}
+
+/* 提示區 */
+.promptzone{
+  text-align:center;
+  padding:30px 10px 26px;
+  border-radius:14px;
+  background:radial-gradient(circle at 50% 0%, #18213a 0%, #0e1426 80%);
+  border:1px solid #232c45;
+  margin-bottom:18px;
+}
+.promptzone .meaning{
+  font-size:30px;
+  font-weight:800;
+  letter-spacing:.02em;
+  color:var(--text-main);
+}
+.promptzone .pos{
+  display:inline-block;
+  margin-top:10px;
+  font-size:11px;
+  color:var(--bg-track);
+  background:var(--amber);
+  padding:2px 10px;
+  border-radius:999px;
+  font-weight:700;
+  letter-spacing:.05em;
+}
+.promptzone .hintword{
+  margin-top:14px;
+  font-family:'Consolas','SFMono-Regular',monospace;
+  font-size:22px;
+  letter-spacing:.18em;
+  color:var(--amber-glow);
+  min-height:28px;
+}
+
+.hintrow{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-top:12px;
+}
+.hintbtn{
+  background:#18213a;
+  border:1px solid #2a3552;
+  color:var(--text-dim);
+  font-size:12px;
+  padding:7px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  letter-spacing:.04em;
+  transition:border-color .15s, color .15s;
+}
+.hintbtn:hover{border-color:var(--amber); color:var(--amber-glow);}
+.hintbtn:disabled{opacity:.35; cursor:not-allowed;}
+
+.inputwrap{
+  position:relative;
+}
+#wordInput{
+  width:100%;
+  padding:16px 18px;
+  font-size:22px;
+  font-family:'Consolas','SFMono-Regular',monospace;
+  letter-spacing:.06em;
+  background:#0a0f1d;
+  border:2px solid #2a3552;
+  border-radius:12px;
+  color:var(--text-main);
+  outline:none;
+  text-align:center;
+  transition:border-color .15s, box-shadow .15s;
+}
+#wordInput:focus{
+  border-color:var(--amber);
+  box-shadow:0 0 0 4px rgba(255,176,32,.15);
+}
+#wordInput.correct{border-color:var(--success); box-shadow:0 0 0 4px rgba(61,220,151,.18);}
+#wordInput.wrong{border-color:var(--danger); box-shadow:0 0 0 4px rgba(255,77,77,.18); animation:shake .25s;}
+@keyframes shake{
+  0%,100%{transform:translateX(0);}
+  25%{transform:translateX(-6px);}
+  75%{transform:translateX(6px);}
+}
+
+.feedback{
+  min-height:20px;
+  text-align:center;
+  font-size:13px;
+  margin-top:10px;
+  color:var(--text-dim);
+}
+
+.startscreen, .endscreen{
+  text-align:center;
+  padding:20px 6px;
+}
+.startscreen h1{
+  font-size:26px;
+  margin:0 0 6px;
+  letter-spacing:.04em;
+}
+.startscreen h1 span{color:var(--amber);}
+.startscreen p{
+  color:var(--text-dim);
+  font-size:14px;
+  line-height:1.7;
+  margin-bottom:22px;
+}
+.bigbtn{
+  background:linear-gradient(180deg, var(--amber-glow), var(--amber));
+  color:#1a1206;
+  border:none;
+  padding:14px 36px;
+  font-size:16px;
+  font-weight:800;
+  letter-spacing:.04em;
+  border-radius:10px;
+  cursor:pointer;
+  box-shadow:0 8px 24px -6px rgba(255,176,32,.5);
+  transition:transform .12s;
+}
+.bigbtn:hover{transform:translateY(-2px);}
+.bigbtn:active{transform:translateY(0);}
+
+.endscreen .gameover{
+  font-size:13px;
+  letter-spacing:.2em;
+  color:var(--danger);
+  font-weight:700;
+  margin-bottom:6px;
+}
+.endscreen .finalscore{
+  font-family:'Consolas',monospace;
+  font-size:48px;
+  font-weight:800;
+  color:var(--amber-glow);
+  text-shadow:0 0 24px rgba(255,176,32,.45);
+  margin-bottom:4px;
+}
+.statsrow{
+  display:flex;
+  justify-content:center;
+  gap:28px;
+  margin:16px 0 26px;
+  font-size:13px;
+  color:var(--text-dim);
+}
+.statsrow b{color:var(--text-main); font-size:16px; display:block; font-family:'Consolas',monospace;}
+
+.hidden{display:none !important;}
+
+/* 背書模式 */
+.studyscreen{padding:6px 2px;}
+.studytop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:16px;
+}
+.studytop .title{
+  font-size:13px;
+  letter-spacing:.18em;
+  color:var(--amber);
+  font-weight:700;
+  text-transform:uppercase;
+}
+.studytop .progress{
+  font-family:'Consolas',monospace;
+  font-size:13px;
+  color:var(--text-dim);
+}
+.flashcard{
+  background:radial-gradient(circle at 50% 0%, #18213a 0%, #0e1426 80%);
+  border:1px solid #232c45;
+  border-radius:16px;
+  padding:40px 20px;
+  text-align:center;
+  min-height:170px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  user-select:none;
+  margin-bottom:16px;
+}
+.flashcard .fc-word{
+  font-family:'Consolas','SFMono-Regular',monospace;
+  font-size:32px;
+  font-weight:700;
+  letter-spacing:.04em;
+  color:var(--text-main);
+}
+.flashcard .fc-pos{
+  margin-top:10px;
+  font-size:11px;
+  color:var(--bg-track);
+  background:var(--amber);
+  padding:2px 10px;
+  border-radius:999px;
+  font-weight:700;
+}
+.flashcard .fc-meaning{
+  margin-top:14px;
+  font-size:22px;
+  color:var(--amber-glow);
+  font-weight:700;
+}
+.flashcard .fc-hint{
+  margin-top:16px;
+  font-size:11px;
+  color:var(--text-dim);
+  letter-spacing:.05em;
+}
+.studynav{
+  display:flex;
+  gap:10px;
+  margin-bottom:14px;
+}
+.navbtn{
+  flex:1;
+  background:#18213a;
+  border:1px solid #2a3552;
+  color:var(--text-main);
+  font-size:14px;
+  font-weight:600;
+  padding:12px;
+  border-radius:10px;
+  cursor:pointer;
+  transition:border-color .15s, color .15s;
+}
+.navbtn:hover{border-color:var(--amber); color:var(--amber-glow);}
+.navbtn:disabled{opacity:.3; cursor:not-allowed;}
+.studyactions{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  margin-top:6px;
+}
+
+/* 關卡選擇 */
+.levelscreen{padding:6px 2px;}
+.leveltop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px;
+}
+.leveltop .title{
+  font-size:13px;
+  letter-spacing:.18em;
+  color:var(--amber);
+  font-weight:700;
+  text-transform:uppercase;
+}
+.levelgrid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-bottom:18px;
+}
+.levelcard{
+  background:radial-gradient(circle at 50% 0%, #18213a 0%, #0e1426 80%);
+  border:1px solid #232c45;
+  border-radius:14px;
+  padding:16px 8px;
+  text-align:center;
+  cursor:pointer;
+  transition:border-color .15s, transform .12s;
+}
+.levelcard:hover{border-color:var(--amber); transform:translateY(-2px);}
+.levelcard .lv-num{
+  font-family:'Consolas',monospace;
+  font-size:22px;
+  font-weight:800;
+  color:var(--amber-glow);
+}
+.levelcard .lv-range{
+  font-size:11px;
+  color:var(--text-dim);
+  margin-top:4px;
+}
+.levelcard .lv-stat{
+  margin-top:8px;
+  font-size:11px;
+  color:var(--success);
+  min-height:14px;
+}
+.levelcard.familiar-done{border-color:var(--success);}
+
+/* Final Boss */
+:root{ --boss:#ff4d4d; --boss-glow:#ff6b6b; }
+.levelcard.boss{
+  background:radial-gradient(circle at 50% 0%, #2a0a0a 0%, #0e0a0a 80%);
+  border-color:var(--boss);
+  box-shadow:0 0 24px -8px rgba(255,77,77,.4);
+  grid-column:1/-1;
+}
+.levelcard.boss .lv-num{
+  color:var(--boss-glow);
+  font-size:20px;
+  letter-spacing:.06em;
+  text-shadow:0 0 16px rgba(255,77,77,.6);
+}
+.levelcard.boss:hover{border-color:#ff2222; transform:translateY(-2px);}
+.levelcard.boss .lv-stat{color:var(--amber);}
+.levelcard.boss.locked{
+  opacity:.35;
+  cursor:not-allowed;
+  pointer-events:none;
+}
+
+/* 題型標籤 */
+.qtype-badge{
+  display:inline-block;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  padding:3px 12px;
+  border-radius:999px;
+  margin-bottom:12px;
+  color:#0a0e1a;
+  background:var(--amber);
+}
+.qtype-badge.scramble{ background:#a78bfa; color:#fff; }
+.qtype-badge.choice{ background:var(--success); color:#0a0e1a; }
+
+/* 重組字母 */
+.scramble-answer{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  min-height:50px;
+  align-items:center;
+  background:#0a0f1d;
+  border:2px solid #2a3552;
+  border-radius:12px;
+  padding:10px 14px;
+  margin-bottom:12px;
+  font-family:'Consolas',monospace;
+  font-size:20px;
+  letter-spacing:.04em;
+  color:var(--amber-glow);
+}
+.scramble-answer.correct{ border-color:var(--success); color:var(--success); }
+.scramble-answer.wrong{ border-color:var(--danger); color:var(--danger); animation:shake .25s; }
+.scramble-tiles{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:4px;
+}
+.tile{
+  width:38px; height:42px;
+  background:linear-gradient(180deg,#1e2d4e,#152040);
+  border:1.5px solid #3a4d70;
+  border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Consolas',monospace;
+  font-size:18px;
+  font-weight:700;
+  color:var(--text-main);
+  cursor:pointer;
+  user-select:none;
+  transition:background .1s, border-color .1s, transform .1s;
+  text-transform:uppercase;
+}
+.tile:hover{ background:#253a60; border-color:var(--amber); transform:translateY(-2px); }
+.tile.used{ opacity:0; pointer-events:none; }
+
+/* 四選一 */
+.choice-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:4px;
+}
+.choice-btn{
+  background:linear-gradient(180deg,#1a2540,#101825);
+  border:1.5px solid #2a3552;
+  border-radius:12px;
+  color:var(--text-main);
+  font-size:15px;
+  font-weight:700;
+  font-family:'Consolas','SFMono-Regular',monospace;
+  padding:16px 10px;
+  cursor:pointer;
+  letter-spacing:.04em;
+  transition:border-color .12s, background .12s, transform .1s;
+  text-align:center;
+}
+.choice-btn:hover{ border-color:var(--amber); background:#1e2d4a; transform:translateY(-2px); }
+.choice-btn.correct{ border-color:var(--success); background:rgba(61,220,151,.12); color:var(--success); }
+.choice-btn.wrong{ border-color:var(--danger); background:rgba(255,77,77,.1); color:var(--danger); animation:shake .25s; }
+.choice-btn:disabled{ cursor:not-allowed; }
+
+/* Boss 模式：計時條變紅 */
+body.boss-mode .timerbar{
+  background:linear-gradient(90deg, #ff4d4d, #ff9933 70%, #ffdd00 100%);
+  box-shadow:0 0 12px rgba(255,77,77,.6);
+}
+body.boss-mode .hud .title{color:var(--boss-glow);}
+body.boss-mode #wordInput:focus{
+  border-color:var(--boss);
+  box-shadow:0 0 0 4px rgba(255,77,77,.18);
+}
+.fc-toolrow{
+  display:flex;
+  gap:10px;
+  margin-bottom:14px;
+}
+.toolbtn{
+  flex:1;
+  background:#18213a;
+  border:1px solid #2a3552;
+  color:var(--text-dim);
+  font-size:13px;
+  font-weight:600;
+  padding:11px;
+  border-radius:10px;
+  cursor:pointer;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.toolbtn:hover{border-color:var(--amber); color:var(--amber-glow);}
+.toolbtn.active{
+  background:rgba(61,220,151,.12);
+  border-color:var(--success);
+  color:var(--success);
+}
+.flashcard.familiar{border-color:var(--success); box-shadow:0 0 0 2px rgba(61,220,151,.15) inset;}
+.familiar-badge{
+  position:absolute;
+  top:14px; right:14px;
+  font-size:11px;
+  color:var(--success);
+  font-weight:700;
+  letter-spacing:.05em;
+}
+.flashcard{position:relative;}
+
+.footer-hint{
+  text-align:center;
+  font-size:11px;
+  color:var(--text-dim);
+  margin-top:14px;
+  letter-spacing:.04em;
+}
+
+/* 閃卡諧音句 */
+.fc-mnemonic{
+  margin-top:12px;
+  font-size:13px;
+  color:#f9a84d;
+  line-height:1.6;
+  background:rgba(255,176,32,.08);
+  border:1px solid rgba(255,176,32,.2);
+  border-radius:10px;
+  padding:8px 14px;
+  text-align:left;
+}
+
+/* 記憶烙印 overlay */
+.burn-overlay{
+  position:fixed; inset:0; z-index:999;
+  background:rgba(8,4,12,.93);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  animation:bfadeIn .2s ease;
+}
+@keyframes bfadeIn{ from{opacity:0} to{opacity:1} }
+.burn-box{
+  width:100%; max-width:520px;
+  background:linear-gradient(160deg,#1a0808,#0e0612);
+  border:1.5px solid #c0392b;
+  border-radius:20px;
+  padding:32px 28px 28px;
+  text-align:center;
+  box-shadow:0 0 60px -10px rgba(255,60,60,.4);
+  animation:bpopIn .25s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes bpopIn{
+  from{transform:scale(.88); opacity:0}
+  to{transform:scale(1); opacity:1}
+}
+.burn-label{
+  font-size:12px; letter-spacing:.2em; font-weight:800;
+  color:#ff6b6b; margin-bottom:14px; text-transform:uppercase;
+}
+.burn-word{
+  font-family:'Consolas',monospace;
+  font-size:36px; font-weight:800; letter-spacing:.06em; color:#fff;
+  text-shadow:0 0 30px rgba(255,100,100,.5); margin-bottom:14px;
+}
+.burn-mnemonic{
+  font-size:16px; line-height:1.7; color:#f9c74f;
+  background:rgba(249,199,79,.08);
+  border:1px solid rgba(249,199,79,.2);
+  border-radius:12px; padding:12px 16px; margin-bottom:18px; text-align:left;
+}
+.burn-instruct{ font-size:12px; color:#8899bb; letter-spacing:.05em; margin-bottom:10px; }
+.burn-dots{
+  font-size:24px; letter-spacing:.4em; color:#2a3040; margin-bottom:14px; transition:all .2s;
+}
+#burnInput{
+  width:100%; padding:14px 18px; font-size:20px;
+  font-family:'Consolas',monospace; letter-spacing:.06em;
+  background:#0d0812; border:2px solid #3a1a1a;
+  border-radius:12px; color:#fff; outline:none; text-align:center;
+  transition:border-color .15s;
+}
+#burnInput:focus{ border-color:#c0392b; }
+#burnInput.hit{ border-color:var(--success); animation:flashGreen .35s ease; }
+#burnInput.miss{ border-color:var(--danger); animation:shake .25s; }
+@keyframes flashGreen{
+  0%{ background:rgba(61,220,151,.22); }
+  100%{ background:#0d0812; }
+}
+.burn-feedback{ min-height:18px; font-size:12px; color:#ff8888; margin-top:8px; letter-spacing:.04em; }
+</style>
+</head>
+<body>
+
+<div class="lanes"></div>
+
+<div class="stage">
+  <div class="card">
+
+    <!-- 開始畫面 -->
+    <div id="startScreen" class="startscreen">
+      <div class="hud" style="justify-content:center; margin-bottom:18px;">
+        <div class="title">SPEED RUN · 時限瘋狂拼字</div>
+      </div>
+      <h1>多益單字<span>衝刺賽</span></h1>
+      <p>看中文意思，搶在時間歸零前打出正確的英文單字。<br>
+      連續答對會觸發 COMBO 加乘分數，但題目時間也會跟著縮短——<br>
+      你的反應力，撐得到第幾關？</p>
+      <button class="bigbtn" onclick="openLevelSelect()">選擇關卡 ▶</button>
+      <div class="footer-hint">共 3 條命・答錯或超時扣 1 命・每關 10 個單字</div>
+    </div>
+
+    <!-- 關卡選擇畫面 -->
+    <div id="levelScreen" class="hidden levelscreen">
+      <div class="leveltop">
+        <div class="title">選擇關卡</div>
+        <button class="navbtn" style="flex:none; padding:8px 16px;" onclick="backToStart()">返回</button>
+      </div>
+      <div class="levelgrid" id="levelGrid"></div>
+      <div class="footer-hint">每關 10 個單字，可先背書再衝刺，也能直接挑戰</div>
+    </div>
+
+    <!-- 背書模式畫面 -->
+    <div id="studyScreen" class="hidden studyscreen">
+      <div class="studytop">
+        <div class="title">📖 先背書模式</div>
+        <div class="progress" id="studyProgress">1 / 85</div>
+      </div>
+      <div class="flashcard" id="flashcard" onclick="flipCard()">
+        <div class="familiar-badge hidden" id="familiarBadge">✓ 已熟悉</div>
+        <div class="fc-word" id="fcWord">word</div>
+        <div class="fc-pos" id="fcPos">n.</div>
+        <div class="fc-meaning hidden" id="fcMeaning">意思</div>
+        <div class="fc-mnemonic hidden" id="fcMnemonic"></div>
+        <div class="fc-hint" id="fcHint">點卡片看意思 + 諧音記憶</div>
+      </div>
+      <div class="fc-toolrow">
+        <button class="toolbtn" onclick="event.stopPropagation(); speakWord();">🔊 發音</button>
+        <button class="toolbtn" id="familiarBtn" onclick="event.stopPropagation(); toggleFamiliar();">☆ 標記已熟悉</button>
+      </div>
+      <div class="studynav">
+        <button class="navbtn" id="prevBtn" onclick="studyPrev()">◀ 上一個</button>
+        <button class="navbtn" id="nextBtn" onclick="studyNext()">下一個 ▶</button>
+      </div>
+      <div class="studyactions">
+        <button class="bigbtn" onclick="startGameFromStudy()">背完了，開始衝刺 ▶</button>
+        <button class="navbtn" style="flex:none; padding:12px 22px;" onclick="backToLevelSelect()">返回關卡</button>
+      </div>
+      <div class="footer-hint" id="familiarCountHint">尚未標記任何單字為已熟悉</div>
+    </div>
+
+    <!-- 遊戲畫面 -->
+    <div id="gameScreen" class="hidden">
+      <div class="hud">
+        <div>
+          <div class="title" id="gameTitle">SPEED RUN</div>
+          <div class="sub" id="wordCounter">第 1 題</div>
+        </div>
+        <div class="scorebox">
+          <div class="label">SCORE</div>
+          <div class="value" id="scoreDisplay">0</div>
+        </div>
+      </div>
+
+      <div class="statusrow">
+        <div class="lives" id="livesBox"></div>
+        <div class="combo" id="comboDisplay">COMBO ×1</div>
+      </div>
+
+      <div class="timerwrap">
+        <div class="timerbar" id="timerBar"></div>
+      </div>
+
+      <div class="promptzone">
+        <div class="qtype-badge" id="qtypeBadge">⌨️ 拼字</div>
+        <div class="meaning" id="meaningText">—</div>
+        <div class="pos" id="posTag">noun</div>
+        <div class="hintword" id="hintWord"></div>
+      </div>
+
+      <!-- 模式1：拼字輸入 -->
+      <div id="typeZone">
+        <div class="inputwrap">
+          <input type="text" id="wordInput" autocomplete="off" autocapitalize="off"
+                 spellcheck="false" placeholder="輸入英文單字後按 Enter">
+        </div>
+        <div class="hintrow">
+          <button class="hintbtn" onclick="speakCurrentGameWord()">🔊 唸一次</button>
+          <button class="hintbtn" id="hintBtn" onclick="useHint()">💡 提示字母（-5分）</button>
+        </div>
+      </div>
+
+      <!-- 模式2：重組字母 -->
+      <div id="scrambleZone" class="hidden">
+        <div class="scramble-answer" id="scrambleAnswer"></div>
+        <div class="scramble-tiles" id="scrambleTiles"></div>
+        <div class="hintrow">
+          <button class="hintbtn" onclick="speakCurrentGameWord()">🔊 唸一次</button>
+          <button class="hintbtn" onclick="scrambleReset()">↺ 重置</button>
+        </div>
+      </div>
+
+      <!-- 模式3：四選一 -->
+      <div id="choiceZone" class="hidden">
+        <div class="choice-grid" id="choiceGrid"></div>
+        <div class="hintrow">
+          <button class="hintbtn" onclick="speakCurrentGameWord()">🔊 唸一次</button>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedbackText"></div>
+    </div>
+
+    <!-- 結束畫面 -->
+    <div id="endScreen" class="hidden endscreen">
+      <div class="gameover">GAME OVER</div>
+      <div class="finalscore" id="finalScore">0</div>
+      <div class="statsrow">
+        <div>最長連擊<b id="maxComboStat">0</b></div>
+        <div>答對題數<b id="correctStat">0</b></div>
+        <div>最佳紀錄<b id="bestScoreStat">0</b></div>
+      </div>
+      <button class="bigbtn" onclick="startGame()">再衝一次 ▶</button>
+      <div class="studyactions">
+        <button class="navbtn" id="nextLevelBtn" style="flex:none; padding:12px 22px;" onclick="goNextLevel()">下一關 ▶</button>
+        <button class="navbtn" style="flex:none; padding:12px 22px;" onclick="backToLevelSelect()">關卡選單</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 記憶烙印 Overlay -->
+<div id="burnOverlay" class="burn-overlay hidden">
+  <div class="burn-box">
+    <div class="burn-label">🔥 記憶烙印</div>
+    <div class="burn-word" id="burnWord"></div>
+    <div class="burn-mnemonic" id="burnMnemonic"></div>
+    <div class="burn-instruct">手打這個單字 <b>3 次</b>才能繼續</div>
+    <div class="burn-dots" id="burnDots">○ ○ ○</div>
+    <input type="text" id="burnInput" autocomplete="off" autocapitalize="off"
+           spellcheck="false" placeholder="在此輸入…">
+    <div class="burn-feedback" id="burnFeedback"></div>
+  </div>
+</div>
+
+<script>
+// ---------- TOEIC 單字庫 ----------
+const WORDS = [
+  ["negotiate","negotiate","協商；談判","v.","「你個賴皮喔！」→ 賴皮討價還價就是協商"],
+  ["invoice","invoice","發票；發貨單","n.","「因voice印出來」→ 把聲音（voice）印成紙就是發票"],
+  ["budget","budget","預算","n.","「不得超！」→ 這筆錢不得超過就是預算"],
+  ["candidate","candidate","應徵者；候選人","n.","「看弟戴特別帽來面試」→ 那個來應徵的弟弟"],
+  ["warehouse","warehouse","倉庫","n.","「我的house堆滿貨」→ 我家就是倉庫"],
+  ["agenda","agenda","議程","n.","「阿姐拿！」→ 阿姐拿著今天的議程清單衝來了"],
+  ["merge","merge","合併","v.","「沒了，合！」→ 兩家公司摩擦久了，沒了，合！"],
+  ["revenue","revenue","營收","n.","「瑞文你撈很多哦」→ 瑞文的公司營收超高"],
+  ["deadline","deadline","截止日期","n.","「死線！」→ 過了那條線就死，就是截止日期"],
+  ["inventory","inventory","存貨；庫存","n.","「因為都要利用」→ 因為都要用，所以要清點庫存"],
+  ["client","client","客戶","n.","「客來了！」→ 客人來了，就是客戶"],
+  ["contract","contract","合約","n.","「看拆特難拆」→ 這份合約特別難拆，簽了就跑不掉"],
+  ["expense","expense","費用；支出","n.","「一起pen死」→ 記費用記到筆都寫死了"],
+  ["promote","promote","升遷；推廣","v.","「噴摩托！」→ 被升遷，高興到噴摩托慶祝"],
+  ["recruit","recruit","招募","v.","「瑞Quick特！」→ 快快快來報名！就是招募"],
+  ["supplier","supplier","供應商","n.","「送鋪樂」→ 送貨鋪貨、很快樂的供應商"],
+  ["draft","draft","草稿；草擬","n./v.","「打草」→ 打草稿就是 draft，超直接"],
+  ["forecast","forecast","預測","n./v.","「佛說：快死特！」→ 佛預言你快死，就是預測"],
+  ["feedback","feedback","回饋意見","n.","「費背殼回來」→ 費盡力氣背著意見回來 = 回饋"],
+  ["accountant","accountant","會計師","n.","「阿看帳特仔細」→ 阿，看帳特別仔細的那個人 = 會計師"],
+  ["shipment","shipment","運送的貨物","n.","「ship門口堆滿」→ ship門口堆滿貨就是運送物"],
+  ["proposal","proposal","提案","n.","「噴鋪蛇了」→ 提案噴出來鋪在桌上像條蛇"],
+  ["quarter","quarter","季度","n.","「誇特！」→ 誇張地說這一個季度業績超好"],
+  ["salary","salary","薪水","n.","「殺了瑞！」→ 老闆把瑞的薪水砍了，瑞哭了"],
+  ["vacant","vacant","空缺的；空著的","adj.","「威啃特空位」→ 威猛地啃掉那個空缺"],
+  ["renew","renew","續約；更新","v.","「瑞牛每年續約」→ 瑞士的牛每年都要 renew 合約"],
+  ["refund","refund","退款","n./v.","「瑞放大」→ 瑞士銀行把退款放大還給你"],
+  ["discount","discount","折扣","n.","「弟看特價！」→ 弟弟看到折扣特別興奮"],
+  ["resign","resign","辭職","v.","「瑞幸不幹了」→ 瑞幸咖啡員工憤而辭職"],
+  ["colleague","colleague","同事","n.","「扣力哥」→ 扣住你的力量、叫你哥的就是同事"],
+  ["headquarters","headquarters","總部","n.","「黑的快特死在這」→ 在那棟黑色大樓裡的就是總部"],
+  ["itinerary","itinerary","行程表","n.","「一踢你瑞利！」→ 一踢你，你就乖乖查行程表了"],
+  ["luggage","luggage","行李","n.","「拉個假！」→ 拉著行李去放假"],
+  ["delay","delay","延遲","n./v.","「弟累」→ 弟弟太累了，所以延遲交件"],
+  ["reimburse","reimburse","補償；報銷","v.","「瑞人補死你」→ 瑞士人補償到你死 = 報銷"],
+  ["attain","attain","達成；獲得","v.","「啊！踢！恩！」→ 踢一腳，達成目標，感謝老天恩典"],
+  ["allocate","allocate","分配","v.","「阿落可特地分好」→ 啊，落下來剛好分配完畢"],
+  ["benefit","benefit","利益；福利","n.","「便宜你飛去」→ 便宜讓你飛去享受福利"],
+  ["committee","committee","委員會","n.","「看密提！」→ 那個密密麻麻提案的小組 = 委員會"],
+  ["consult","consult","諮詢","v.","「看鹽特多」→ 鹽太多，趕快去諮詢廚師"],
+  ["distribute","distribute","分發；分配","v.","「弟死瑞不」→ 弟弟死命地把資料分發出去"],
+  ["efficient","efficient","有效率的","adj.","「一飛新特！」→ 一飛就全新特快，有效率"],
+  ["estimate","estimate","估計","n./v.","「一死踢媽特」→ 死命踢估算出一個數字"],
+  ["evaluate","evaluate","評估","v.","「一val你！」→ 一下就算出你的 value，評估完畢"],
+  ["exceed","exceed","超過","v.","「一系特多」→ 一系列特別多，超過標準了"],
+  ["exhibit","exhibit","展覽；展示","n./v.","「一習畢特展！」→ 一習完就辦畢業特展"],
+  ["expand","expand","擴展","v.","「一起盤大！」→ 一起把版圖盤大，擴展"],
+  ["facility","facility","設施","n.","「發死利提」→ 這個設施差點要你命，但很方便"],
+  ["fund","fund","資金","n.","「放大」→ 把你的資金放大就是 fund"],
+  ["guarantee","guarantee","保證","n./v.","「給啊，你踢我！」→ 我給你，不信你來踢，我保證"],
+  ["implement","implement","實施；執行","v.","「印鋪門口」→ 印章蓋在門口，代表正式執行"],
+  ["instruct","instruct","指示；教導","v.","「因死拉特」→ 因為死拉特地跟你講，就是指示"],
+  ["launch","launch","推出；發起","v.","「爛掉前快推出！」→ 趁還沒爛掉，趕快 launch"],
+  ["maintain","maintain","維持；保養","v.","「沒踢，恩」→ 沒有踢你，感恩，維持和平"],
+  ["manufacture","manufacture","製造","v.","「沒你發特殊」→ 沒有你就無法製造特殊產品"],
+  ["notify","notify","通知","v.","「諾基亞踢飛來通知你」→ 諾基亞手機飛來砸你就是通知"],
+  ["obtain","obtain","獲得","v.","「哦！拜特恩！」→ 哦，拜謝特別的恩賜，獲得了"],
+  ["overdue","overdue","逾期的","adj.","「哦！喔！弟 U 型管逾期了！」→ 弟弟的 U 形作業過期"],
+  ["permit","permit","許可；准許","n./v.","「噴密特！」→ 噴出一張許可證才能進密室"],
+  ["personnel","personnel","人事部門；員工","n.","「拍掃那群人」→ 拍掃走那群管人事的"],
+  ["postpone","postpone","延後","v.","「噴死，噴！」→ 噴了又噴，一直延後"],
+  ["productivity","productivity","生產力","n.","「噴達克踢 city」→ 在城市裡踢出驚人生產力"],
+  ["qualify","qualify","使合格","v.","「誇你飛得高」→ 誇你飛得高才算合格"],
+  ["recommend","recommend","推薦","v.","「瑞扣門」→ 瑞士人扣著門，特地推薦你進來"],
+  ["register","register","登記；註冊","v.","「瑞機死特地登記」→ 瑞士登記機差點死，還是要登記"],
+  ["release","release","發布；釋出","v.","「瑞力死也要發布」→ 瑞士人用盡全力才 release"],
+  ["reliable","reliable","可靠的","adj.","「瑞賴阿不走」→ 瑞士人賴在你身邊不走，超可靠"],
+  ["replace","replace","取代","v.","「瑞噴死舊的」→ 把舊的噴死，換新的來取代"],
+  ["request","request","要求；請求","n./v.","「瑞快死特地來要求」→ 瑞士人快死前特地來拜託"],
+  ["require","require","需要；要求","v.","「瑞快呦！」→ 瑞士人喊：快點哦！我需要你！"],
+  ["reservation","reservation","預訂","n.","「瑞色哇頓頓」→ 瑞士色彩哇的一聲預訂好了"],
+  ["resolve","resolve","解決","v.","「瑞鎖我」→ 瑞士人把問題鎖起來，解決了"],
+  ["retail","retail","零售","n.","「瑞踢呦！」→ 瑞士人踢你一腳，叫你去零售店"],
+  ["retain","retain","保留；留住","v.","「瑞踢但恩還在」→ 被踢了，恩情還在，被留住了"],
+  ["revise","revise","修改","v.","「瑞威脅：不改就死！」→ 瑞士人威脅你修改"],
+  ["schedule","schedule","行程表；排程","n.","「死家就」→ 死在家裡，就是因為行程排太滿"],
+  ["statement","statement","結算單；聲明","n.","「死踢門口要對帳」→ 死守門口踢人，要看對帳單"],
+  ["submit","submit","提交","v.","「下死咪！」→ 死命按下去咪住，提交完成"],
+  ["subscribe","subscribe","訂閱","v.","「下死可瑞！」→ 死力按下去，可以訂閱瑞士頻道"],
+  ["substantial","substantial","可觀的；大量的","adj.","「下是丹大象！」→ 下面是一頭大丹麥象，量很可觀"],
+  ["sufficient","sufficient","足夠的","adj.","「下飛新特夠了！」→ 下飛機就夠特別了，足夠"],
+  ["supervisor","supervisor","主管","n.","「蘇怕我？是啊！」→ 蘇怕我？是啊，我是你主管！"],
+  ["surplus","surplus","盈餘；過剩","n.","「蛇一噴死」→ 蛇噴出太多毒液，過剩到噴死自己"],
+  ["transaction","transaction","交易","n.","「轉啊轉，成交！」→ 轉啊轉談完，成交 = 交易"],
+  ["vendor","vendor","賣方；供應商","n.","「飯哆！」→ 飯賣太多哆哆的供應商"],
+  ["venue","venue","場地","n.","「威你！」→ 威脅你來這個場地，不來不行"],
+  ["warranty","warranty","保固","n.","「我啊踢你才給保固！」→ 我踢你一腳，才給保固"],
+  ["withdraw","withdraw","提款；撤回","v.","「威死卓！」→ 威猛死卓地把錢從戶頭提走"]
+];
+
+// ---------- 關卡分組 ----------
+const LEVEL_SIZE = 10;
+const LEVELS = [];
+for(let i=0;i<WORDS.length;i+=LEVEL_SIZE){
+  LEVELS.push(WORDS.slice(i, i+LEVEL_SIZE));
+}
+let currentLevelIndex = 0;
+let levelBestScores = {}; // levelIndex -> best score
+
+// ---------- 遊戲狀態 ----------
+let pool = [];
+let currentWord = null;
+let score = 0;
+let lives = 3;
+let combo = 0;
+let maxCombo = 0;
+let correctCount = 0;
+let wordIndex = 0;
+let timeLimit = 14000;  // 起始時間 (ms)
+let timeLeft = 0;
+let timerInterval = null;
+let lastTick = 0;
+let bestScore = 0;
+let revealedCount = 0;
+// 0=拼字 1=重組 2=四選一
+let qType = 0;
+let scrambleLetters = []; // [{char, used}]
+let scrambleTyped = [];   // 玩家已點選的字母索引順序
+
+const startScreen = document.getElementById('startScreen');
+const gameScreen = document.getElementById('gameScreen');
+const endScreen = document.getElementById('endScreen');
+const meaningText = document.getElementById('meaningText');
+const posTag = document.getElementById('posTag');
+const wordInput = document.getElementById('wordInput');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const timerBar = document.getElementById('timerBar');
+const livesBox = document.getElementById('livesBox');
+const comboDisplay = document.getElementById('comboDisplay');
+const feedbackText = document.getElementById('feedbackText');
+const wordCounter = document.getElementById('wordCounter');
+const hintWordEl = document.getElementById('hintWord');
+const hintBtn = document.getElementById('hintBtn');
+const levelScreen = document.getElementById('levelScreen');
+const levelGrid = document.getElementById('levelGrid');
+const nextLevelBtn = document.getElementById('nextLevelBtn');
+const gameTitle = document.getElementById('gameTitle');
+const qtypeBadge = document.getElementById('qtypeBadge');
+const typeZone = document.getElementById('typeZone');
+const scrambleZone = document.getElementById('scrambleZone');
+const choiceZone = document.getElementById('choiceZone');
+const scrambleAnswer = document.getElementById('scrambleAnswer');
+const scrambleTiles = document.getElementById('scrambleTiles');
+const choiceGrid = document.getElementById('choiceGrid');
+
+function shuffle(arr){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+// ---------- 關卡選擇 ----------
+let isBossMode = false;
+
+function openLevelSelect(){
+  startScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  studyScreen.classList.add('hidden');
+  levelScreen.classList.remove('hidden');
+  renderLevelGrid();
+}
+
+function backToLevelSelect(){
+  gameScreen.classList.add('hidden');
+  studyScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  startScreen.classList.add('hidden');
+  levelScreen.classList.remove('hidden');
+  isBossMode = false;
+  document.body.classList.remove('boss-mode');
+  renderLevelGrid();
+}
+
+function backToStart(){
+  levelScreen.classList.add('hidden');
+  studyScreen.classList.add('hidden');
+  startScreen.classList.remove('hidden');
+  isBossMode = false;
+  document.body.classList.remove('boss-mode');
+}
+
+function allLevelsCleared(){
+  return LEVELS.every((_, idx) => levelBestScores[idx] !== undefined);
+}
+
+function renderLevelGrid(){
+  levelGrid.innerHTML = '';
+  LEVELS.forEach((lv, idx) => {
+    const start = idx*LEVEL_SIZE + 1;
+    const end = idx*LEVEL_SIZE + lv.length;
+    const best = levelBestScores[idx];
+    const card = document.createElement('div');
+    card.className = 'levelcard' + (best !== undefined ? ' familiar-done' : '');
+    card.innerHTML =
+      '<div class="lv-num">LV.' + (idx+1) + '</div>' +
+      '<div class="lv-range">第 ' + start + '-' + end + ' 字</div>' +
+      '<div class="lv-stat">' + (best !== undefined ? '最佳 ' + best + ' 分' : '\u00A0') + '</div>';
+    card.onclick = () => openStudy(idx);
+    levelGrid.appendChild(card);
+  });
+
+  // Boss 卡
+  const unlocked = allLevelsCleared();
+  const bossCard = document.createElement('div');
+  const bossBest = levelBestScores['boss'];
+  bossCard.className = 'levelcard boss' + (unlocked ? '' : ' locked');
+  bossCard.innerHTML =
+    '<div class="lv-num">💀 FINAL BOSS</div>' +
+    '<div class="lv-range">' + (unlocked ? '全部 ' + WORDS.length + ' 個單字混戰' : '通過所有關卡後解鎖') + '</div>' +
+    '<div class="lv-stat">' + (bossBest !== undefined ? '最佳 ' + bossBest + ' 分' : (unlocked ? '尚未挑戰' : '')) + '</div>';
+  if(unlocked) bossCard.onclick = startBossMode;
+  levelGrid.appendChild(bossCard);
+}
+
+function goNextLevel(){
+  if(isBossMode || currentLevelIndex >= LEVELS.length - 1){
+    backToLevelSelect();
+  } else {
+    currentLevelIndex += 1;
+    openStudy(currentLevelIndex);
+  }
+}
+
+function startBossMode(){
+  isBossMode = true;
+  document.body.classList.add('boss-mode');
+  // 用所有未熟悉的單字，全部熟悉則用全部
+  const unfamiliar = WORDS.filter(w => !familiarWords.has(w[0]));
+  pool = shuffle(unfamiliar.length > 0 ? unfamiliar : WORDS);
+  wordIndex = 0;
+  score = 0;
+  lives = 5;  // Boss 模式多給 5 條命
+  combo = 0;
+  maxCombo = 0;
+  correctCount = 0;
+  timeLimit = 10000;  // Boss 起始時間較短
+
+  startScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  studyScreen.classList.add('hidden');
+  levelScreen.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+
+  renderLives();
+  updateScore();
+  updateCombo();
+  nextWord();
+}
+
+// ---------- 發音 ----------
+function speakText(text){
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  u.rate = 0.9;
+  window.speechSynthesis.speak(u);
+}
+function speakWord(){
+  const lv = LEVELS[currentLevelIndex];
+  if(lv && lv[studyIndex]) speakText(lv[studyIndex][1]);
+}
+function speakCurrentGameWord(){
+  if(currentWord) speakText(currentWord[1]);
+}
+
+// ---------- 已熟悉單字 ----------
+let familiarWords = new Set();
+
+function startGame(){
+  isBossMode = false;
+  document.body.classList.remove('boss-mode');
+  const levelWords = LEVELS[currentLevelIndex];
+  const unfamiliar = levelWords.filter(w => !familiarWords.has(w[0]));
+  pool = shuffle(unfamiliar.length > 0 ? unfamiliar : levelWords);
+  wordIndex = 0;
+  score = 0;
+  lives = 3;
+  combo = 0;
+  maxCombo = 0;
+  correctCount = 0;
+  timeLimit = 14000;
+
+  startScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  studyScreen.classList.add('hidden');
+  levelScreen.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+
+  renderLives();
+  updateScore();
+  updateCombo();
+  nextWord();
+}
+
+function renderLives(){
+  const maxLives = isBossMode ? 5 : 3;
+  livesBox.innerHTML = '';
+  for(let i=0;i<maxLives;i++){
+    const d = document.createElement('div');
+    d.className = 'life' + (i < lives ? '' : ' lost');
+    livesBox.appendChild(d);
+  }
+}
+
+function updateScore(){
+  scoreDisplay.textContent = score;
+}
+
+function updateCombo(){
+  if(combo >= 2){
+    comboDisplay.textContent = 'COMBO ×' + comboMultiplier();
+    comboDisplay.classList.add('show');
+  } else {
+    comboDisplay.classList.remove('show');
+  }
+}
+
+function comboMultiplier(){
+  return 1 + Math.min(Math.floor(combo/2), 4); // 最高 x5
+}
+
+function nextWord(){
+  if(!isBossMode && correctCount >= pool.length){
+    endGame(true);
+    return;
+  }
+  if(wordIndex >= pool.length){
+    pool = shuffle(pool);
+    wordIndex = 0;
+  }
+  currentWord = pool[wordIndex++];
+  const label = isBossMode ? '💀 第 ' + (correctCount+1) + ' 題' : '第 ' + (correctCount+1) + ' / ' + pool.length + ' 題';
+  wordCounter.textContent = label;
+  meaningText.textContent = currentWord[2];
+  posTag.textContent = currentWord[3];
+  feedbackText.textContent = '';
+
+  // 隨機題型：拼字 40%、重組 30%、四選一 30%
+  const r = Math.random();
+  qType = r < 0.4 ? 0 : r < 0.7 ? 1 : 2;
+
+  typeZone.classList.add('hidden');
+  scrambleZone.classList.add('hidden');
+  choiceZone.classList.add('hidden');
+
+  if(qType === 0){
+    qtypeBadge.textContent = '⌨️ 拼出這個單字';
+    qtypeBadge.className = 'qtype-badge';
+    typeZone.classList.remove('hidden');
+    wordInput.value = '';
+    wordInput.classList.remove('correct','wrong');
+    revealedCount = 0;
+    hintBtn.disabled = false;
+    hintBtn.textContent = '💡 提示字母（-5分）';
+    renderHintWord();
+    wordInput.focus();
+  } else if(qType === 1){
+    qtypeBadge.textContent = '🔤 點字母重組單字';
+    qtypeBadge.className = 'qtype-badge scramble';
+    hintWordEl.textContent = '';
+    scrambleZone.classList.remove('hidden');
+    renderScramble();
+  } else {
+    qtypeBadge.textContent = '🎯 選出正確的英文單字';
+    qtypeBadge.className = 'qtype-badge choice';
+    hintWordEl.textContent = '';
+    choiceZone.classList.remove('hidden');
+    renderChoices();
+  }
+
+  if(isBossMode){
+    timeLimit = Math.max(4000, 10000 - combo * 120);
+  } else {
+    timeLimit = Math.max(6000, 14000 - combo * 150);
+  }
+  timeLeft = timeLimit;
+  startTimerBar();
+}
+
+function renderHintWord(){
+  const w = currentWord[0];
+  let display = '';
+  for(let i=0;i<w.length;i++){
+    display += (i < revealedCount) ? w[i].toUpperCase() : '_';
+    display += ' ';
+  }
+  hintWordEl.textContent = display.trim();
+}
+
+function useHint(){
+  if(!currentWord) return;
+  if(revealedCount >= currentWord[0].length - 1){
+    // 已經露出到只剩最後一個字母，不再扣分，直接全部顯示
+    revealedCount = currentWord[0].length;
+    hintBtn.disabled = true;
+  } else {
+    revealedCount += 1;
+    score = Math.max(0, score - 5);
+    updateScore();
+  }
+  renderHintWord();
+  if(revealedCount >= currentWord[0].length){
+    hintBtn.disabled = true;
+  }
+}
+
+// ---------- 記憶烙印 ----------
+const burnOverlay = document.getElementById('burnOverlay');
+const burnWord = document.getElementById('burnWord');
+const burnMnemonic = document.getElementById('burnMnemonic');
+const burnDots = document.getElementById('burnDots');
+const burnInput = document.getElementById('burnInput');
+const burnFeedback = document.getElementById('burnFeedback');
+let burnCount = 0;
+let burnTarget = '';
+
+function showBurn(word){
+  burnTarget = word[0];
+  burnCount = 0;
+  burnWord.textContent = word[1].toUpperCase();
+  burnMnemonic.textContent = word[4] || '';
+  burnDots.textContent = '○ ○ ○';
+  burnInput.value = '';
+  burnInput.className = '';
+  burnFeedback.textContent = '';
+  burnOverlay.classList.remove('hidden');
+  setTimeout(()=> burnInput.focus(), 100);
+}
+
+function dismissBurn(){
+  burnOverlay.classList.add('hidden');
+  setTimeout(nextWord, 200);
+}
+
+burnInput.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  const val = burnInput.value.trim().toLowerCase();
+  if(!val) return;
+  if(val === burnTarget){
+    burnCount++;
+    burnInput.classList.remove('miss');
+    burnInput.classList.add('hit');
+    const filled = '● '.repeat(burnCount).trim();
+    const empty = '○ '.repeat(3 - burnCount).trim();
+    burnDots.textContent = (filled + ' ' + empty).trim();
+    burnDots.style.color = burnCount === 3 ? 'var(--success)' : 'var(--amber)';
+    burnFeedback.textContent = burnCount < 3 ? ['再來！', '很好，再一次！'][burnCount-1] : '';
+    burnInput.value = '';
+    setTimeout(()=> burnInput.classList.remove('hit'), 350);
+    if(burnCount >= 3){
+      burnFeedback.textContent = '✓ 烙印完成！繼續加油';
+      setTimeout(dismissBurn, 700);
+    }
+  } else {
+    burnInput.classList.remove('hit');
+    burnInput.classList.add('miss');
+    burnFeedback.textContent = '不對喔，仔細看上面的單字再打一次';
+    burnInput.value = '';
+    setTimeout(()=> burnInput.classList.remove('miss'), 300);
+  }
+});
+
+function startTimerBar(){
+  clearInterval(timerInterval);
+  lastTick = Date.now();
+  timerBar.style.width = '100%';
+  timerInterval = setInterval(()=>{
+    const now = Date.now();
+    const dt = now - lastTick;
+    lastTick = now;
+    timeLeft -= dt;
+    const pct = Math.max(0, (timeLeft/timeLimit)*100);
+    timerBar.style.width = pct + '%';
+    if(timeLeft <= 0){
+      clearInterval(timerInterval);
+      handleTimeout();
+    }
+  }, 40);
+}
+
+// ---------- 重組字母 ----------
+function renderScramble(){
+  scrambleLetters = shuffle([...currentWord[0]]).map(c => ({ char:c, used:false }));
+  scrambleTyped = [];
+  drawScramble();
+}
+
+function drawScramble(){
+  scrambleAnswer.className = 'scramble-answer';
+  scrambleAnswer.textContent = scrambleTyped.map(i => scrambleLetters[i].char.toUpperCase()).join(' ') || '　';
+  scrambleTiles.innerHTML = '';
+  scrambleLetters.forEach((lt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tile' + (lt.used ? ' used' : '');
+    btn.textContent = lt.char.toUpperCase();
+    btn.onclick = () => tileClick(i);
+    scrambleTiles.appendChild(btn);
+  });
+}
+
+function tileClick(i){
+  if(scrambleLetters[i].used) return;
+  scrambleLetters[i].used = true;
+  scrambleTyped.push(i);
+  drawScramble();
+  // 如果已填滿，自動判斷
+  if(scrambleTyped.length === currentWord[0].length){
+    const typed = scrambleTyped.map(i => scrambleLetters[i].char).join('');
+    if(typed === currentWord[0]){
+      scrambleAnswer.classList.add('correct');
+      setTimeout(handleCorrect, 300);
+    } else {
+      scrambleAnswer.classList.add('wrong');
+      feedbackText.style.color = 'var(--danger)';
+      feedbackText.textContent = '拼錯囉，正確答案：' + currentWord[1];
+      clearInterval(timerInterval);
+      setTimeout(()=>{ loseLife(); }, 500);
+    }
+  }
+}
+
+function scrambleReset(){
+  scrambleLetters.forEach(lt => lt.used = false);
+  scrambleTyped = [];
+  drawScramble();
+}
+
+// ---------- 四選一 ----------
+function renderChoices(){
+  // 從完整單字庫中抽 3 個不同的干擾選項
+  const distractors = shuffle(WORDS.filter(w => w[0] !== currentWord[0])).slice(0, 3);
+  const options = shuffle([currentWord, ...distractors]);
+  choiceGrid.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = opt[1];
+    btn.onclick = () => choiceClick(btn, opt[0] === currentWord[0]);
+    choiceGrid.appendChild(btn);
+  });
+}
+
+function choiceClick(btn, isCorrect){
+  // 鎖定所有按鈕
+  choiceGrid.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+  if(isCorrect){
+    btn.classList.add('correct');
+    setTimeout(handleCorrect, 350);
+  } else {
+    btn.classList.add('wrong');
+    feedbackText.style.color = 'var(--danger)';
+    feedbackText.textContent = '答錯囉！正確答案：' + currentWord[1];
+    clearInterval(timerInterval);
+    // 顯示正確選項
+    choiceGrid.querySelectorAll('.choice-btn').forEach(b => {
+      if(b.textContent === currentWord[1]) b.classList.add('correct');
+    });
+    setTimeout(()=>{ loseLife(); }, 700);
+  }
+}
+
+function handleTimeout(){
+  feedbackText.textContent = '時間到！正確答案：' + currentWord[1];
+  feedbackText.style.color = 'var(--danger)';
+  // 四選一：時間到顯示正確答案
+  if(qType === 2){
+    choiceGrid.querySelectorAll('.choice-btn').forEach(b => {
+      b.disabled = true;
+      if(b.textContent === currentWord[1]) b.classList.add('correct');
+    });
+  }
+  loseLife();
+}
+
+function loseLife(){
+  combo = 0;
+  updateCombo();
+  lives -= 1;
+  renderLives();
+  if(lives <= 0){
+    setTimeout(()=> endGame(false), 600);
+  } else {
+    setTimeout(()=> showBurn(currentWord), 400);
+  }
+}
+
+function handleCorrect(){
+  clearInterval(timerInterval);
+  combo += 1;
+  maxCombo = Math.max(maxCombo, combo);
+  correctCount += 1;
+  const mult = comboMultiplier();
+  // 四選一得分較低，重組與拼字正常
+  const base = qType === 2 ? 7 : 10;
+  const gained = base * mult;
+  score += gained;
+  updateScore();
+  updateCombo();
+  feedbackText.style.color = 'var(--success)';
+  feedbackText.textContent = '正確！ +' + gained + (mult > 1 ? '（連擊 ×' + mult + '）' : '');
+  setTimeout(nextWord, 450);
+}
+
+wordInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && qType === 0){
+    const val = wordInput.value.trim().toLowerCase();
+    if(val.length === 0) return;
+    if(val === currentWord[0]){
+      wordInput.classList.add('correct');
+      handleCorrect();
+    } else {
+      wordInput.classList.add('wrong');
+      feedbackText.style.color = 'var(--danger)';
+      feedbackText.textContent = '拼錯囉，正確答案：' + currentWord[1];
+      clearInterval(timerInterval);
+      loseLife();
+    }
+  }
+});
+
+function endGame(cleared){
+  clearInterval(timerInterval);
+  gameScreen.classList.add('hidden');
+  endScreen.classList.remove('hidden');
+  document.body.classList.remove('boss-mode');
+
+  if(isBossMode){
+    const prevBest = levelBestScores['boss'] || 0;
+    levelBestScores['boss'] = Math.max(prevBest, score);
+    document.querySelector('.gameover').textContent = cleared ? '💀 BOSS 擊破！' : '💀 BOSS 獲勝…';
+    document.querySelector('.gameover').style.color = cleared ? 'var(--amber)' : 'var(--danger)';
+    document.getElementById('bestScoreStat').textContent = levelBestScores['boss'];
+    nextLevelBtn.classList.add('hidden');
+  } else {
+    bestScore = Math.max(bestScore, score);
+    const prevLevelBest = levelBestScores[currentLevelIndex] || 0;
+    levelBestScores[currentLevelIndex] = Math.max(prevLevelBest, score);
+    try{localStorage.setItem('speedBest_'+currentLevelIndex, levelBestScores[currentLevelIndex]);}catch(e){}
+    document.querySelector('.gameover').textContent = cleared ? '🏁 LEVEL CLEAR' : 'GAME OVER';
+    document.querySelector('.gameover').style.color = cleared ? 'var(--success)' : 'var(--danger)';
+    document.getElementById('bestScoreStat').textContent = levelBestScores[currentLevelIndex];
+    const hasNext = currentLevelIndex < LEVELS.length - 1;
+    nextLevelBtn.classList.toggle('hidden', !(cleared && hasNext));
+  }
+
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('maxComboStat').textContent = maxCombo;
+  document.getElementById('correctStat').textContent = correctCount;
+}
+
+// ---------- 先背書模式 ----------
+let studyIndex = 0;
+let studyFlipped = false;
+const studyScreen = document.getElementById('studyScreen');
+const flashcard = document.getElementById('flashcard');
+const fcWord = document.getElementById('fcWord');
+const fcPos = document.getElementById('fcPos');
+const fcMeaning = document.getElementById('fcMeaning');
+const fcHint = document.getElementById('fcHint');
+const studyProgress = document.getElementById('studyProgress');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+
+const familiarBadge = document.getElementById('familiarBadge');
+const familiarBtn = document.getElementById('familiarBtn');
+const familiarCountHint = document.getElementById('familiarCountHint');
+
+function openStudy(levelIndex){
+  currentLevelIndex = levelIndex;
+  startScreen.classList.add('hidden');
+  levelScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  studyScreen.classList.remove('hidden');
+  studyIndex = 0;
+  renderStudyCard();
+}
+
+function startGameFromStudy(){
+  startGame();
+}
+
+function renderStudyCard(){
+  const lv = LEVELS[currentLevelIndex];
+  const w = lv[studyIndex];
+  fcWord.textContent = w[1];
+  fcPos.textContent = w[3];
+  fcMeaning.textContent = w[2];
+  document.getElementById('fcMnemonic').textContent = w[4] || '';
+  studyFlipped = false;
+  fcMeaning.classList.add('hidden');
+  document.getElementById('fcMnemonic').classList.add('hidden');
+  fcHint.textContent = '點卡片看意思 + 諧音記憶';
+  studyProgress.textContent = 'LV.' + (currentLevelIndex+1) + '・' + (studyIndex+1) + ' / ' + lv.length;
+  prevBtn.disabled = (studyIndex === 0);
+  nextBtn.disabled = false;
+  nextBtn.textContent = (studyIndex === lv.length - 1) ? '回到第一個' : '下一個 ▶';
+
+  const isFamiliar = familiarWords.has(w[0]);
+  flashcard.classList.toggle('familiar', isFamiliar);
+  familiarBadge.classList.toggle('hidden', !isFamiliar);
+  familiarBtn.classList.toggle('active', isFamiliar);
+  familiarBtn.textContent = isFamiliar ? '✓ 已熟悉' : '☆ 標記已熟悉';
+  updateFamiliarCountHint();
+}
+
+function toggleFamiliar(){
+  const lv = LEVELS[currentLevelIndex];
+  const w = lv[studyIndex];
+  if(familiarWords.has(w[0])){
+    familiarWords.delete(w[0]);
+  } else {
+    familiarWords.add(w[0]);
+  }
+  renderStudyCard();
+}
+
+function updateFamiliarCountHint(){
+  const lv = LEVELS[currentLevelIndex];
+  const n = lv.filter(w => familiarWords.has(w[0])).length;
+  familiarCountHint.textContent = n === 0
+    ? '本關尚未標記任何單字為已熟悉'
+    : '本關已標記 ' + n + ' / ' + lv.length + ' 個熟悉單字・衝刺模式將優先考剩下的 ' + (lv.length - n) + ' 個';
+}
+
+function flipCard(){
+  studyFlipped = !studyFlipped;
+  fcMeaning.classList.toggle('hidden', !studyFlipped);
+  document.getElementById('fcMnemonic').classList.toggle('hidden', !studyFlipped);
+  fcHint.textContent = studyFlipped ? '再點一下收起' : '點卡片看意思 + 諧音記憶';
+}
+
+function studyNext(){
+  const lv = LEVELS[currentLevelIndex];
+  if(studyIndex === lv.length - 1){
+    studyIndex = 0;
+  } else {
+    studyIndex += 1;
+  }
+  renderStudyCard();
+}
+
+function studyPrev(){
+  if(studyIndex > 0){
+    studyIndex -= 1;
+    renderStudyCard();
+  }
+}
+</script>
+</body>
+</html>
