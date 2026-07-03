@@ -338,6 +338,16 @@ function buildLevel(lv){
   pairsLeft=LEVEL_SIZE;
   totalTime=BASE_TIME+lv*5;
   timeLeft=totalTime;
+
+  // 確保初始盤面至少有一個合法路徑
+  let attempt=0;
+  while(!hasValidMove() && attempt<50){
+    const positions2=shuffle([...Array(ROWS*COLS).keys()]);
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) grid[r][c]=null;
+    tiles.forEach((t,i)=>{const p=positions2[i];t.r=0|p/COLS;t.c=p%COLS;grid[t.r][t.c]=t;});
+    attempt++;
+  }
+
   renderGrid(); startTimer(); resizeCanvas();
 }
 
@@ -452,6 +462,7 @@ function clickTile(r,c){
     pairVal.textContent=pairsLeft;
     progBar.style.width=(pairsLeft/LEVEL_SIZE*100)+'%';
     if(pairsLeft===0){ setTimeout(()=>endGame(true),400); sfxClear(); }
+    else { setTimeout(checkDeadlock, 500); }
   },380);
 }
 
@@ -515,37 +526,102 @@ function spawnParticles(el,color){
   }
 }
 
-// ── 路徑
+// ── 路徑（修正版：正確處理邊界與同行同列情況）
 function isEmpty(r,c){
   if(r<0||r>=ROWS||c<0||c>=COLS) return true;
   return grid[r][c]===null;
 }
+
+// 檢查同一列 r，從 c1 到 c2 之間（不含兩端）是否暢通
 function clearRow(r,c1,c2){
-  const lo=Math.min(c1,c2)+1,hi=Math.max(c1,c2)-1;
-  for(let c=lo;c<=hi;c++) if(!isEmpty(r,c)) return false;
+  // 若 r 在格子外，整列都是空的
+  if(r<0||r>=ROWS) return true;
+  const lo=Math.min(c1,c2)+1, hi=Math.max(c1,c2)-1;
+  for(let c=lo;c<=hi;c++){
+    if(c>=0&&c<COLS&&grid[r][c]!==null) return false;
+  }
   return true;
 }
+
+// 檢查同一欄 c，從 r1 到 r2 之間（不含兩端）是否暢通
 function clearCol(c,r1,r2){
-  const lo=Math.min(r1,r2)+1,hi=Math.max(r1,r2)-1;
-  for(let r=lo;r<=hi;r++) if(!isEmpty(r,c)) return false;
+  if(c<0||c>=COLS) return true;
+  const lo=Math.min(r1,r2)+1, hi=Math.max(r1,r2)-1;
+  for(let r=lo;r<=hi;r++){
+    if(r>=0&&r<ROWS&&grid[r][c]!==null) return false;
+  }
   return true;
 }
+
 function findPath(r1,c1,r2,c2){
-  if(r1===r2&&clearRow(r1,c1,c2)) return [{r:r1,c:c1},{r:r2,c:c2}];
-  if(c1===c2&&clearCol(c1,r1,r2)) return [{r:r1,c:c1},{r:r2,c:c2}];
-  if(isEmpty(r1,c2)&&clearRow(r1,c1,c2)&&clearCol(c2,r1,r2)) return [{r:r1,c:c1},{r:r1,c:c2},{r:r2,c:c2}];
-  if(isEmpty(r2,c1)&&clearCol(c1,r1,r2)&&clearRow(r2,c1,c2)) return [{r:r1,c:c1},{r:r2,c:c1},{r:r2,c:c2}];
+  // 0 轉：同行直連
+  if(r1===r2 && clearRow(r1,c1,c2))
+    return [{r:r1,c:c1},{r:r2,c:c2}];
+
+  // 0 轉：同欄直連
+  if(c1===c2 && clearCol(c1,r1,r2))
+    return [{r:r1,c:c1},{r:r2,c:c2}];
+
+  // 1 轉：L 形，轉角 (r1,c2)
+  // 注意：轉角不能是 A 或 B 本身
+  if(!(r1===r2&&c1===c2) && isEmpty(r1,c2)
+      && clearRow(r1,c1,c2) && clearCol(c2,r1,r2))
+    return [{r:r1,c:c1},{r:r1,c:c2},{r:r2,c:c2}];
+
+  // 1 轉：L 形，轉角 (r2,c1)
+  if(!(r1===r2&&c1===c2) && isEmpty(r2,c1)
+      && clearCol(c1,r1,r2) && clearRow(r2,c1,c2))
+    return [{r:r1,c:c1},{r:r2,c:c1},{r:r2,c:c2}];
+
+  // 2 轉：掃描所有可能的中間行（含格子外 -1 和 ROWS）
   for(let r=-1;r<=ROWS;r++){
     if(r===r1||r===r2) continue;
-    if(isEmpty(r,c1)&&isEmpty(r,c2)&&clearCol(c1,r1,r)&&clearRow(r,c1,c2)&&clearCol(c2,r,r2))
+    // 路徑：(r1,c1)→(r,c1)→(r,c2)→(r2,c2)
+    if(isEmpty(r,c1) && isEmpty(r,c2)
+        && clearCol(c1,r1,r)
+        && clearRow(r,c1,c2)
+        && clearCol(c2,r,r2))
       return [{r:r1,c:c1},{r:r,c:c1},{r:r,c:c2},{r:r2,c:c2}];
   }
+
+  // 2 轉：掃描所有可能的中間欄（含格子外 -1 和 COLS）
   for(let c=-1;c<=COLS;c++){
     if(c===c1||c===c2) continue;
-    if(isEmpty(r1,c)&&isEmpty(r2,c)&&clearRow(r1,c1,c)&&clearCol(c,r1,r2)&&clearRow(r2,c,c2))
+    // 路徑：(r1,c1)→(r1,c)→(r2,c)→(r2,c2)
+    if(isEmpty(r1,c) && isEmpty(r2,c)
+        && clearRow(r1,c1,c)
+        && clearCol(c,r1,r2)
+        && clearRow(r2,c,c2))
       return [{r:r1,c:c1},{r:r1,c:c},{r:r2,c:c},{r:r2,c:c2}];
   }
+
   return null;
+}
+
+// ── 死局偵測：掃描所有配對，找到任一條可連的就回傳 true
+function hasValidMove(){
+  for(let r1=0;r1<ROWS;r1++) for(let c1=0;c1<COLS;c1++){
+    const a=grid[r1][c1]; if(!a) continue;
+    for(let r2=0;r2<ROWS;r2++) for(let c2=0;c2<COLS;c2++){
+      if(r1===r2&&c1===c2) continue;
+      const b=grid[r2][c2]; if(!b) continue;
+      if(a.key===b.key && a.type!==b.type && findPath(r1,c1,r2,c2))
+        return true;
+    }
+  }
+  return false;
+}
+
+// 消除後檢查是否死局，死局則自動重排
+function checkDeadlock(){
+  if(pairsLeft>0 && !hasValidMove()){
+    powerupBadge.textContent='🔀 無路可走！自動重排中…';
+    setTimeout(()=>{
+      reshuffleBoard();
+      powerupBadge.textContent='✅ 重排完成！';
+      setTimeout(()=>{ powerupBadge.textContent=''; },1500);
+    },600);
+  }
 }
 
 // ── 畫線
@@ -586,10 +662,16 @@ function reshuffleBoard(){
   ctx.clearRect(0,0,canvas.width,canvas.height); selected=null;
   const tiles=[];
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(grid[r][c]) tiles.push(grid[r][c]);
-  const positions=shuffle([...Array(ROWS*COLS).keys()]);
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) grid[r][c]=null;
-  tiles.forEach((t,i)=>{const p=positions[i];t.r=0|p/COLS;t.c=p%COLS;grid[t.r][t.c]=t;});
-  renderGrid(); score=Math.max(0,score-10); updateScoreUI();
+  // 持續洗牌直到至少有一個合法路徑
+  let attempt=0;
+  do{
+    const positions=shuffle([...Array(ROWS*COLS).keys()]);
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) grid[r][c]=null;
+    tiles.forEach((t,i)=>{const p=positions[i];t.r=0|p/COLS;t.c=p%COLS;grid[t.r][t.c]=t;});
+    attempt++;
+  }while(!hasValidMove() && attempt<30);
+  renderGrid();
+  score=Math.max(0,score-10); updateScoreUI();
 }
 
 function nextLevel(){ startGame(levelIndex<9?levelIndex+1:1); }
